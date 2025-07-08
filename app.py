@@ -1,55 +1,42 @@
+# app.py
+
 import streamlit as st
 import pickle
+import os
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
-from xgboost import XGBClassifier
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
 
-# Load vectorizer and models
-vectorizer = pickle.load(open("tfidf_vectorizer.pkl", "rb"))
+# App title
+st.title("📰 Fake News Detection App")
+st.markdown("Detect whether a news article is **Real** or **Fake** using a Machine Learning model trained on TF-IDF features.")
 
-models = {
-    "Logistic Regression": pickle.load(open("logistic_regression_model.pkl", "rb")),
-    "Random Forest": pickle.load(open("random_forest_model.pkl", "rb")),
-    "XGBoost": pickle.load(open("xgboost_model.pkl", "rb"))
-}
+# Load model and vectorizer
+model_path = "fake_news_model.pkl"
+vectorizer_path = "tfidf_vectorizer.pkl"
 
-st.set_page_config(page_title="Fake News Detector", layout="centered")
-st.title("📰 Fake News Detection App (Advanced)")
+# Check file existence
+if not os.path.exists(model_path) or not os.path.exists(vectorizer_path):
+    st.error("Model files not found. Please run `train_model.py` to generate them.")
+    st.stop()
 
-# --- Sidebar ---
-st.sidebar.title("🧠 Choose Model")
-model_choice = st.sidebar.radio("Select Classifier", list(models.keys()))
-model = models[model_choice]
+# Load the model and vectorizer
+model = pickle.load(open(model_path, "rb"))
+vectorizer = pickle.load(open(vectorizer_path, "rb"))
 
-st.sidebar.markdown("💬 Example:")
-if st.sidebar.button("Paste Example"):
-    st.session_state["user_input"] = "NASA confirms discovery of water on Mars, opening door for future missions."
+# Text input
+user_input = st.text_area("📝 Enter the news content below:", height=250)
 
-# --- Input Section ---
-st.subheader("Enter News Text Below:")
-user_input = st.text_area("Text to classify", key="user_input", height=200)
-
-# --- Predict ---
 if st.button("🔍 Predict"):
-    if user_input.strip():
-        transformed = vectorizer.transform([user_input])
-        prediction = model.predict(transformed)[0]
-        proba = model.predict_proba(transformed)[0]
-
-        label = "🟢 REAL News" if prediction == 1 else "🔴 FAKE News"
-        st.subheader(f"Prediction: {label}")
-
-        # --- Confidence Bar ---
-        st.markdown("### 🎯 Confidence")
-        fig, ax = plt.subplots()
-        ax.bar(["FAKE", "REAL"], proba, color=["red", "green"])
-        ax.set_ylim([0, 1])
-        ax.set_ylabel("Probability")
-        st.pyplot(fig)
-
-        st.markdown(f"**Selected Model:** `{model_choice}`")
+    if not user_input.strip():
+        st.warning("Please enter some text to classify.")
     else:
-        st.warning("Please enter text to classify.")
+        # Preprocess and transform
+        input_vec = vectorizer.transform([user_input])
+        prediction = model.predict(input_vec)[0]
+
+        # Display result
+        if prediction == 1:
+            st.success("✅ This news article is **REAL**.")
+        else:
+            st.error("❌ This news article is **FAKE**.")
+
